@@ -1,0 +1,23 @@
+using UnityEngine;
+
+/// <summary>
+/// Shared color palette for all Squid Game UI screens.
+/// </summary>
+[CreateAssetMenu(fileName = "UIColorPalette", menuName = "Squid Game/UI Color Palette")]
+public sealed class UIColorPalette : ScriptableObject
+{
+    [Header("Core")]
+    public Color background = new Color(0.039f, 0.039f, 0.059f, 1f);
+    public Color primaryAccent = new Color(1f, 0.176f, 0.333f, 1f);
+    public Color secondaryAccent = new Color(0f, 0.898f, 0.627f, 1f);
+    public Color warning = new Color(1f, 0.722f, 0f, 1f);
+
+    [Header("Text")]
+    public Color textPrimary = Color.white;
+    public Color textSecondary = new Color(0.69f, 0.722f, 0.757f, 1f);
+
+    [Header("Panels")]
+    public Color panelBackground = new Color(0.039f, 0.039f, 0.078f, 0.92f);
+    public Color overlay = new Color(0.039f, 0.039f, 0.059f, 0.95f);
+    public Color transparentOverlay = new Color(0.039f, 0.039f, 0.059f, 0.72f);
+}

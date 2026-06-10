@@ -1,0 +1,100 @@
+using System;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// Controls the in-game heads-up display and its animated visibility.
+/// </summary>
+public sealed class HUDController : MonoBehaviour
+{
+    [SerializeField] private UIColorPalette palette;
+    [SerializeField] private RectTransform playerBadge;
+    [SerializeField] private TMP_Text playerNumberText;
+    [SerializeField] private RectTransform challengeHeader;
+    [SerializeField] private TMP_Text challengeNameText;
+    [SerializeField] private TMP_Text phaseText;
+    [SerializeField] private RectTransform strikeCluster;
+    [SerializeField] private Image[] strikeCircles = Array.Empty<Image>();
+    [SerializeField] private Image timerBarFill;
+    [SerializeField] private RectTransform actionPromptRoot;
+    [SerializeField] private TMP_Text actionPromptText;
+
+    private Sequence activeSequence;
+
+    public void SetPlayerNumber(int number)
+    {
+        playerNumberText.text = string.Format(UIStrings.PlayerNumberFormat, number);
+    }
+
+    public void SetChallengeName(string challengeName)
+    {
+        challengeNameText.text = challengeName.ToUpperInvariant();
+    }
+
+    public void SetPhase(RoundPhase phase)
+    {
+        bool isRed = phase == RoundPhase.RedLight;
+        bool canRun = phase == RoundPhase.GreenRun;
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        Color success = palette != null ? palette.secondaryAccent : new Color(0f, 0.898f, 0.627f, 1f);
+        Color warning = palette != null ? palette.warning : new Color(1f, 0.722f, 0f, 1f);
+        phaseText.text = isRed ? UIStrings.RedLight : canRun ? UIStrings.Run : UIStrings.GreenLight;
+        phaseText.color = isRed ? danger : canRun ? success : warning;
+        SetActionPrompt(isRed ? UIStrings.DontMove : UIStrings.Run, isRed ? danger : success);
+    }
+
+    public void SetTimerProgress(float progress01)
+    {
+        if (timerBarFill != null)
+            timerBarFill.fillAmount = Mathf.Clamp01(progress01);
+    }
+
+    public void SetStrikes(int strikes)
+    {
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        Color empty = new Color(1f, 1f, 1f, 0.18f);
+
+        for (int i = 0; i < strikeCircles.Length; i++)
+        {
+            if (strikeCircles[i] == null)
+                continue;
+
+            strikeCircles[i].color = i < strikes ? danger : empty;
+        }
+    }
+
+    public Sequence Show()
+    {
+        activeSequence?.Kill();
+        activeSequence = DOTween.Sequence();
+        activeSequence.Join(Slide(playerBadge, new Vector2(-360f, playerBadge.anchoredPosition.y), playerBadge.anchoredPosition));
+        activeSequence.Join(Slide(challengeHeader, new Vector2(challengeHeader.anchoredPosition.x, 160f), challengeHeader.anchoredPosition));
+        activeSequence.Join(Slide(strikeCluster, new Vector2(360f, strikeCluster.anchoredPosition.y), strikeCluster.anchoredPosition));
+        activeSequence.Join(Slide(actionPromptRoot, new Vector2(actionPromptRoot.anchoredPosition.x, -180f), actionPromptRoot.anchoredPosition));
+        return activeSequence;
+    }
+
+    public Sequence Hide()
+    {
+        activeSequence?.Kill();
+        activeSequence = DOTween.Sequence();
+        activeSequence.Join(Slide(playerBadge, playerBadge.anchoredPosition, new Vector2(-360f, playerBadge.anchoredPosition.y)));
+        activeSequence.Join(Slide(challengeHeader, challengeHeader.anchoredPosition, new Vector2(challengeHeader.anchoredPosition.x, 160f)));
+        activeSequence.Join(Slide(strikeCluster, strikeCluster.anchoredPosition, new Vector2(360f, strikeCluster.anchoredPosition.y)));
+        activeSequence.Join(Slide(actionPromptRoot, actionPromptRoot.anchoredPosition, new Vector2(actionPromptRoot.anchoredPosition.x, -180f)));
+        return activeSequence;
+    }
+
+    private void SetActionPrompt(string content, Color color)
+    {
+        actionPromptText.text = content;
+        actionPromptText.color = color;
+    }
+
+    private static Sequence Slide(RectTransform target, Vector2 from, Vector2 to)
+    {
+        return UIAnimationManager.Require().SlideIn(target, from, to, 0.34f);
+    }
+}

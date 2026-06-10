@@ -1,0 +1,45 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.csproj
+*.sln
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+
+# Unity generated files
+sysinfo.txt
+*.stackdump
+*.apk
+*.aab
+*.unitypackage
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local screenshots and temporary verification logs
+unity-screen*.png
+*-compile.log
+compile-check.log
+create-glass-bridge.log
+menu-build.log
+scene-setup.log
+unity-import.log
+unity-verify.log
+
+# Old nested local project copy
+projet gaming/

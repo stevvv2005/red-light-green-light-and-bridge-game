@@ -1,0 +1,74 @@
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// Displays cinematic GREEN LIGHT and RED LIGHT transitions.
+/// </summary>
+public sealed class LightStateUI : MonoBehaviour
+{
+    [SerializeField] private UIColorPalette palette;
+    [SerializeField] private CanvasGroup rootGroup;
+    [SerializeField] private TMP_Text stateTitle;
+    [SerializeField] private Image titleGlow;
+    [SerializeField] private Image countdownRing;
+    [SerializeField] private RectTransform cameraEyeIcon;
+    [SerializeField] private VignetteController vignetteController;
+
+    private Sequence activeSequence;
+
+    public void ShowGreenLight(float duration)
+    {
+        ShowState(UIStrings.GreenLight, palette.secondaryAccent, duration, false);
+    }
+
+    public void ShowRedLight(float duration)
+    {
+        ShowState(UIStrings.RedLight, palette.primaryAccent, duration, true);
+    }
+
+    public void SetCountdown(float progress01)
+    {
+        if (countdownRing != null)
+            countdownRing.fillAmount = Mathf.Clamp01(progress01);
+    }
+
+    private void ShowState(string title, Color color, float duration, bool isDanger)
+    {
+        activeSequence?.Kill();
+        if (rootGroup != null)
+        {
+            rootGroup.alpha = 1f;
+            rootGroup.blocksRaycasts = false;
+        }
+
+        stateTitle.text = title;
+        stateTitle.color = color;
+        if (titleGlow != null)
+            titleGlow.color = new Color(color.r, color.g, color.b, 0.45f);
+
+        countdownRing.color = color;
+        countdownRing.fillAmount = 1f;
+
+        activeSequence = DOTween.Sequence();
+        activeSequence.Append(stateTitle.rectTransform.DOScale(1.08f, 0.16f).SetEase(Ease.OutBack));
+        activeSequence.Append(stateTitle.rectTransform.DOScale(1f, 0.18f).SetEase(Ease.OutCubic));
+        activeSequence.Join(countdownRing.DOFillAmount(0f, Mathf.Max(0.1f, duration)).SetEase(Ease.Linear));
+
+        if (isDanger)
+        {
+            if (cameraEyeIcon != null)
+                activeSequence.Join(cameraEyeIcon.DOScaleY(0.18f, 0.16f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine));
+            if (vignetteController != null)
+                activeSequence.Join(vignetteController.PulseDanger());
+        }
+        else
+        {
+            if (cameraEyeIcon != null)
+                cameraEyeIcon.localScale = Vector3.one;
+            if (vignetteController != null)
+                activeSequence.Join(vignetteController.FadeOut());
+        }
+    }
+}

@@ -1,0 +1,326 @@
+using TMPro;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// Generates the cinematic uGUI prefabs and shared color palette.
+/// </summary>
+public static class SquidGameUIGenerator
+{
+    private const string ResourcesFolder = "Assets/Resources";
+    private const string UIFolder = "Assets/Resources/UI";
+    private const string PalettePath = UIFolder + "/UIColorPalette.asset";
+
+    [MenuItem("Tools/Squid Game UI/Rebuild Cinematic UI")]
+    public static void RebuildCinematicUI()
+    {
+        EnsureFolders();
+        UIColorPalette palette = EnsurePalette();
+        CreateChallengeResultPrefab(palette);
+        CreateHUDPrefab(palette);
+        CreateLightStatePrefab(palette);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("Cinematic Squid Game UI prefabs rebuilt under Assets/Resources/UI.");
+    }
+
+    private static void EnsureFolders()
+    {
+        if (!AssetDatabase.IsValidFolder(ResourcesFolder))
+            AssetDatabase.CreateFolder("Assets", "Resources");
+
+        if (!AssetDatabase.IsValidFolder(UIFolder))
+            AssetDatabase.CreateFolder(ResourcesFolder, "UI");
+    }
+
+    private static UIColorPalette EnsurePalette()
+    {
+        UIColorPalette palette = AssetDatabase.LoadAssetAtPath<UIColorPalette>(PalettePath);
+        if (palette != null)
+            return palette;
+
+        palette = ScriptableObject.CreateInstance<UIColorPalette>();
+        AssetDatabase.CreateAsset(palette, PalettePath);
+        return palette;
+    }
+
+    private static void CreateChallengeResultPrefab(UIColorPalette palette)
+    {
+        GameObject root = CreatePanel("ChallengeFailedPanel", null, StretchFull(), palette.transparentOverlay);
+        CanvasGroup group = root.AddComponent<CanvasGroup>();
+        ChallengeResultUI resultUI = root.AddComponent<ChallengeResultUI>();
+        Image overlay = root.GetComponent<Image>();
+
+        Image noise = CreatePanel("NoiseOverlay", root.transform, StretchFull(), new Color(1f, 1f, 1f, 0.05f)).GetComponent<Image>();
+        RectTransform topBar = CreatePanel("AnimatedTopBar", root.transform, TopStretch(22f), palette.primaryAccent).GetComponent<RectTransform>();
+
+        GameObject failedRoot = CreateEmpty("ChallengeFailedRoot", root.transform, StretchFull());
+        TMP_Text title = CreateText("Title", failedRoot.transform, UIStrings.ChallengeFailedTitle, 62, palette.textPrimary, TextAlignmentOptions.Center, Center(0f, 205f, 980f, 86f));
+        TMP_Text description = CreateText("Description", failedRoot.transform, "Movement detected during the wrong phase.", 25, palette.textPrimary, TextAlignmentOptions.Center, Center(0f, 116f, 880f, 80f));
+        TMP_Text strikeCounter = CreateText("StrikeCounter", failedRoot.transform, string.Format(UIStrings.TaskFailedFormat, 1, 3), 24, palette.textSecondary, TextAlignmentOptions.Center, Center(0f, 54f, 600f, 42f));
+        Image[] strikeCircles = CreateStrikeRow("StrikeIcons", failedRoot.transform, Center(0f, 0f, 220f, 38f), palette);
+        RectTransform statusBox = CreateStatusBox(failedRoot.transform, palette);
+        TMP_Text statusTitle = statusBox.Find("StatusTitle").GetComponent<TMP_Text>();
+        TMP_Text statusMessage = statusBox.Find("StatusMessage").GetComponent<TMP_Text>();
+        Button waitButton = CreateButton("WaitButton", failedRoot.transform, UIStrings.WaitForGreenLight, Center(-165f, -232f, 300f, 58f), palette.warning, true, out TMP_Text waitLabel);
+        Button retryButton = CreateButton("RetryButton", failedRoot.transform, UIStrings.Retry, Center(165f, -232f, 250f, 58f), palette.primaryAccent, false, out TMP_Text retryLabel);
+
+        GameObject gameOverRoot = CreateEmpty("GameOverRoot", root.transform, StretchFull());
+        TMP_Text eliminated = CreateText("EliminatedTitle", gameOverRoot.transform, UIStrings.EliminatedTitle, 76, palette.primaryAccent, TextAlignmentOptions.Center, Center(0f, 164f, 900f, 90f));
+        RectTransform badgeRoot = CreatePanel("EliminatedBadge", gameOverRoot.transform, Center(0f, 55f, 178f, 88f), new Color(1f, 1f, 1f, 0.08f)).GetComponent<RectTransform>();
+        TMP_Text badge = CreateText("Number", badgeRoot, "067", 48, palette.textPrimary, TextAlignmentOptions.Center, StretchFull());
+        TMP_Text distance = CreateStat("DistanceStat", gameOverRoot.transform, "DISTANCE", "0 m", -260f, palette);
+        TMP_Text time = CreateStat("TimeStat", gameOverRoot.transform, "TIME SURVIVED", "00:00", 0f, palette);
+        TMP_Text challenges = CreateStat("ChallengesStat", gameOverRoot.transform, "CHALLENGES", "0", 260f, palette);
+        Button watchButton = CreateButton("WatchOthersButton", gameOverRoot.transform, UIStrings.WatchOthers, Center(-165f, -230f, 280f, 58f), palette.secondaryAccent, true, out _);
+        Button exitButton = CreateButton("ExitButton", gameOverRoot.transform, UIStrings.ExitGame, Center(165f, -230f, 250f, 58f), palette.primaryAccent, false, out _);
+        gameOverRoot.SetActive(false);
+
+        SerializedObject so = new SerializedObject(resultUI);
+        Set(so, "palette", palette);
+        Set(so, "rootGroup", group);
+        Set(so, "overlay", overlay);
+        Set(so, "topBar", topBar);
+        Set(so, "noiseOverlay", noise);
+        Set(so, "challengeFailedRoot", failedRoot);
+        Set(so, "failedTitle", title);
+        Set(so, "failedDescription", description);
+        Set(so, "strikeCounterText", strikeCounter);
+        SetArray(so, "failedStrikeCircles", strikeCircles);
+        Set(so, "statusBox", statusBox);
+        Set(so, "statusTitle", statusTitle);
+        Set(so, "statusMessage", statusMessage);
+        Set(so, "waitButton", waitButton);
+        Set(so, "waitButtonLabel", waitLabel);
+        Set(so, "retryButton", retryButton);
+        Set(so, "retryButtonLabel", retryLabel);
+        Set(so, "gameOverRoot", gameOverRoot);
+        Set(so, "eliminatedTitle", eliminated);
+        Set(so, "numberBadge", badge);
+        Set(so, "badgeCrackRoot", badgeRoot);
+        Set(so, "distanceText", distance);
+        Set(so, "timeText", time);
+        Set(so, "challengesText", challenges);
+        Set(so, "watchOthersButton", watchButton);
+        Set(so, "exitButton", exitButton);
+        so.ApplyModifiedProperties();
+
+        SavePrefab(root, UIFolder + "/ChallengeFailedPanel.prefab");
+    }
+
+    private static void CreateHUDPrefab(UIColorPalette palette)
+    {
+        GameObject root = CreateEmpty("HUD", null, StretchFull());
+        HUDController hud = root.AddComponent<HUDController>();
+        RectTransform playerBadge = CreatePanel("PlayerBadge", root.transform, Anchored(new Vector2(0f, 1f), new Vector2(28f, -28f), new Vector2(206f, 58f), new Vector2(0f, 1f)), palette.panelBackground).GetComponent<RectTransform>();
+        TMP_Text playerText = CreateText("PlayerNumber", playerBadge, string.Format(UIStrings.PlayerNumberFormat, 67), 27, palette.textPrimary, TextAlignmentOptions.Center, StretchFull());
+        RectTransform header = CreatePanel("ChallengeHeader", root.transform, Anchored(new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(560f, 72f), new Vector2(0.5f, 1f)), palette.panelBackground).GetComponent<RectTransform>();
+        TMP_Text challenge = CreateText("ChallengeName", header, "RED LIGHT GREEN LIGHT", 22, palette.textPrimary, TextAlignmentOptions.Center, Anchored(new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(500f, 30f), new Vector2(0.5f, 1f)));
+        TMP_Text phase = CreateText("Phase", header, UIStrings.GreenLight, 28, palette.secondaryAccent, TextAlignmentOptions.Center, Anchored(new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(500f, 34f), new Vector2(0.5f, 0f)));
+        RectTransform cluster = CreatePanel("StrikeTimerCluster", root.transform, Anchored(new Vector2(1f, 1f), new Vector2(-28f, -28f), new Vector2(286f, 68f), new Vector2(1f, 1f)), palette.panelBackground).GetComponent<RectTransform>();
+        Image[] strikes = CreateStrikeRow("StrikeIcons", cluster, Anchored(new Vector2(0f, 0.5f), new Vector2(20f, 0f), new Vector2(132f, 32f), new Vector2(0f, 0.5f)), palette);
+        Image timerFill = CreatePanel("TimerFill", cluster, Anchored(new Vector2(1f, 0.5f), new Vector2(-18f, 0f), new Vector2(110f, 8f), new Vector2(1f, 0.5f)), palette.secondaryAccent).GetComponent<Image>();
+        timerFill.type = Image.Type.Filled;
+        timerFill.fillMethod = Image.FillMethod.Horizontal;
+        RectTransform prompt = CreatePanel("ActionPrompt", root.transform, Anchored(new Vector2(0.5f, 0f), new Vector2(0f, 34f), new Vector2(520f, 66f), new Vector2(0.5f, 0f)), new Color(0f, 0f, 0f, 0.46f)).GetComponent<RectTransform>();
+        TMP_Text promptText = CreateText("PromptText", prompt, UIStrings.Run, 34, palette.secondaryAccent, TextAlignmentOptions.Center, StretchFull());
+
+        SerializedObject so = new SerializedObject(hud);
+        Set(so, "palette", palette);
+        Set(so, "playerBadge", playerBadge);
+        Set(so, "playerNumberText", playerText);
+        Set(so, "challengeHeader", header);
+        Set(so, "challengeNameText", challenge);
+        Set(so, "phaseText", phase);
+        Set(so, "strikeCluster", cluster);
+        SetArray(so, "strikeCircles", strikes);
+        Set(so, "timerBarFill", timerFill);
+        Set(so, "actionPromptRoot", prompt);
+        Set(so, "actionPromptText", promptText);
+        so.ApplyModifiedProperties();
+
+        SavePrefab(root, UIFolder + "/HUD.prefab");
+    }
+
+    private static void CreateLightStatePrefab(UIColorPalette palette)
+    {
+        GameObject root = CreateEmpty("LightStatePanel", null, StretchFull());
+        CanvasGroup group = root.AddComponent<CanvasGroup>();
+        LightStateUI lightState = root.AddComponent<LightStateUI>();
+        Image vignette = CreatePanel("Vignette", root.transform, StretchFull(), new Color(1f, 0.176f, 0.333f, 0f)).GetComponent<Image>();
+        VignetteController vignetteController = vignette.gameObject.AddComponent<VignetteController>();
+        Image glow = CreatePanel("TitleGlow", root.transform, Center(0f, 44f, 760f, 146f), new Color(0f, 0.898f, 0.627f, 0.36f)).GetComponent<Image>();
+        TMP_Text title = CreateText("StateTitle", root.transform, UIStrings.GreenLight, 92, palette.secondaryAccent, TextAlignmentOptions.Center, Center(0f, 44f, 960f, 120f));
+        Image ring = CreatePanel("CountdownRing", root.transform, Center(0f, -92f, 122f, 122f), palette.secondaryAccent).GetComponent<Image>();
+        ring.type = Image.Type.Filled;
+        ring.fillMethod = Image.FillMethod.Radial360;
+        RectTransform eye = CreatePanel("CameraEyeIcon", root.transform, Center(0f, -92f, 70f, 30f), palette.textPrimary).GetComponent<RectTransform>();
+
+        SerializedObject vignetteSo = new SerializedObject(vignetteController);
+        Set(vignetteSo, "palette", palette);
+        Set(vignetteSo, "vignetteImage", vignette);
+        vignetteSo.ApplyModifiedProperties();
+
+        SerializedObject so = new SerializedObject(lightState);
+        Set(so, "palette", palette);
+        Set(so, "rootGroup", group);
+        Set(so, "stateTitle", title);
+        Set(so, "titleGlow", glow);
+        Set(so, "countdownRing", ring);
+        Set(so, "cameraEyeIcon", eye);
+        Set(so, "vignetteController", vignetteController);
+        so.ApplyModifiedProperties();
+
+        SavePrefab(root, UIFolder + "/LightStatePanel.prefab");
+    }
+
+    private static RectTransform CreateStatusBox(Transform parent, UIColorPalette palette)
+    {
+        RectTransform box = CreatePanel("StatusBox", parent, Center(0f, -104f, 650f, 96f), palette.panelBackground).GetComponent<RectTransform>();
+        CreatePanel("AmberBorder", box, Anchored(new Vector2(0f, 0.5f), Vector2.zero, new Vector2(6f, 96f), new Vector2(0f, 0.5f)), palette.warning);
+        CreateText("StatusTitle", box, UIStrings.BlockedStatus, 20, palette.warning, TextAlignmentOptions.Left, Anchored(new Vector2(0f, 1f), new Vector2(28f, -16f), new Vector2(580f, 28f), new Vector2(0f, 1f)));
+        CreateText("StatusMessage", box, UIStrings.WaitForGreenLight, 22, palette.textPrimary, TextAlignmentOptions.Left, Anchored(new Vector2(0f, 0f), new Vector2(28f, 18f), new Vector2(580f, 38f), new Vector2(0f, 0f)));
+        return box;
+    }
+
+    private static TMP_Text CreateStat(string name, Transform parent, string label, string value, float x, UIColorPalette palette)
+    {
+        RectTransform panel = CreatePanel(name, parent, Center(x, -92f, 220f, 92f), palette.panelBackground).GetComponent<RectTransform>();
+        CreateText("Label", panel, label, 15, palette.textSecondary, TextAlignmentOptions.Center, Anchored(new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(190f, 24f), new Vector2(0.5f, 1f)));
+        return CreateText("Value", panel, value, 30, palette.textPrimary, TextAlignmentOptions.Center, Anchored(new Vector2(0.5f, 0f), new Vector2(0f, 16f), new Vector2(190f, 36f), new Vector2(0.5f, 0f)));
+    }
+
+    private static Image[] CreateStrikeRow(string name, Transform parent, RectSpec spec, UIColorPalette palette)
+    {
+        RectTransform row = CreateEmpty(name, parent, spec).GetComponent<RectTransform>();
+        Image[] circles = new Image[3];
+        for (int i = 0; i < circles.Length; i++)
+            circles[i] = CreatePanel("Strike" + (i + 1), row, Center(-44f + (i * 44f), 0f, 26f, 26f), new Color(1f, 1f, 1f, 0.18f)).GetComponent<Image>();
+        return circles;
+    }
+
+    private static Button CreateButton(string name, Transform parent, string label, RectSpec spec, Color color, bool outline, out TMP_Text labelText)
+    {
+        GameObject buttonObject = CreatePanel(name, parent, spec, outline ? new Color(0f, 0f, 0f, 0.18f) : color);
+        Button button = buttonObject.AddComponent<Button>();
+        Image image = buttonObject.GetComponent<Image>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = image.color;
+        colors.highlightedColor = Color.Lerp(image.color, color, 0.35f);
+        colors.pressedColor = color;
+        button.colors = colors;
+        if (outline)
+        {
+            Outline border = buttonObject.AddComponent<Outline>();
+            border.effectColor = color;
+            border.effectDistance = new Vector2(2f, -2f);
+        }
+        labelText = CreateText("Label", buttonObject.transform, label, 20, Color.white, TextAlignmentOptions.Center, StretchFull());
+        return button;
+    }
+
+    private static TMP_Text CreateText(string name, Transform parent, string text, int size, Color color, TextAlignmentOptions alignment, RectSpec spec)
+    {
+        GameObject textObject = CreateEmpty(name, parent, spec);
+        TMP_Text tmp = textObject.AddComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = size;
+        tmp.color = color;
+        tmp.alignment = alignment;
+        tmp.enableAutoSizing = true;
+        tmp.fontSizeMin = Mathf.Max(10, size - 10);
+        tmp.fontSizeMax = size;
+        tmp.overflowMode = TextOverflowModes.Ellipsis;
+        return tmp;
+    }
+
+    private static GameObject CreatePanel(string name, Transform parent, RectSpec spec, Color color)
+    {
+        GameObject panel = CreateEmpty(name, parent, spec);
+        Image image = panel.AddComponent<Image>();
+        image.color = color;
+        return panel;
+    }
+
+    private static GameObject CreateEmpty(string name, Transform parent, RectSpec spec)
+    {
+        GameObject obj = new GameObject(name, typeof(RectTransform));
+        if (parent != null)
+            obj.transform.SetParent(parent, false);
+        ApplySpec(obj.GetComponent<RectTransform>(), spec);
+        return obj;
+    }
+
+    private static void ApplySpec(RectTransform rect, RectSpec spec)
+    {
+        rect.anchorMin = spec.AnchorMin;
+        rect.anchorMax = spec.AnchorMax;
+        rect.pivot = spec.Pivot;
+        rect.anchoredPosition = spec.Position;
+        rect.sizeDelta = spec.Size;
+        rect.offsetMin = spec.OffsetMin;
+        rect.offsetMax = spec.OffsetMax;
+    }
+
+    private static void SavePrefab(GameObject root, string path)
+    {
+        PrefabUtility.SaveAsPrefabAsset(root, path);
+        Object.DestroyImmediate(root);
+    }
+
+    private static void Set(SerializedObject so, string name, Object value)
+    {
+        so.FindProperty(name).objectReferenceValue = value;
+    }
+
+    private static void SetArray(SerializedObject so, string name, Object[] values)
+    {
+        SerializedProperty prop = so.FindProperty(name);
+        prop.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++)
+            prop.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+    }
+
+    private static RectSpec StretchFull()
+    {
+        return new RectSpec(Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+    }
+
+    private static RectSpec TopStretch(float height)
+    {
+        return new RectSpec(new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, height), new Vector2(0f, -height), Vector2.zero);
+    }
+
+    private static RectSpec Center(float x, float y, float width, float height)
+    {
+        return Anchored(new Vector2(0.5f, 0.5f), new Vector2(x, y), new Vector2(width, height), new Vector2(0.5f, 0.5f));
+    }
+
+    private static RectSpec Anchored(Vector2 anchor, Vector2 position, Vector2 size, Vector2 pivot)
+    {
+        return new RectSpec(anchor, anchor, pivot, position, size, Vector2.zero, Vector2.zero);
+    }
+
+    private readonly struct RectSpec
+    {
+        public readonly Vector2 AnchorMin;
+        public readonly Vector2 AnchorMax;
+        public readonly Vector2 Pivot;
+        public readonly Vector2 Position;
+        public readonly Vector2 Size;
+        public readonly Vector2 OffsetMin;
+        public readonly Vector2 OffsetMax;
+
+        public RectSpec(Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 position, Vector2 size, Vector2 offsetMin, Vector2 offsetMax)
+        {
+            AnchorMin = anchorMin;
+            AnchorMax = anchorMax;
+            Pivot = pivot;
+            Position = position;
+            Size = size;
+            OffsetMin = offsetMin;
+            OffsetMax = offsetMax;
+        }
+    }
+}

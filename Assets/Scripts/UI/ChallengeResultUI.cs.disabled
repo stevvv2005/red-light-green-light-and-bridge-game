@@ -1,0 +1,178 @@
+using System;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+/// <summary>
+/// Controls the challenge failed and game over cinematic panels.
+/// </summary>
+public sealed class ChallengeResultUI : MonoBehaviour
+{
+    [Header("Shared")]
+    [SerializeField] private UIColorPalette palette;
+    [SerializeField] private CanvasGroup rootGroup;
+    [SerializeField] private Image overlay;
+    [SerializeField] private RectTransform topBar;
+    [SerializeField] private Image noiseOverlay;
+
+    [Header("Challenge Failed")]
+    [SerializeField] private GameObject challengeFailedRoot;
+    [SerializeField] private TMP_Text failedTitle;
+    [SerializeField] private TMP_Text failedDescription;
+    [SerializeField] private TMP_Text strikeCounterText;
+    [SerializeField] private Image[] failedStrikeCircles = Array.Empty<Image>();
+    [SerializeField] private RectTransform statusBox;
+    [SerializeField] private TMP_Text statusTitle;
+    [SerializeField] private TMP_Text statusMessage;
+    [SerializeField] private Button waitButton;
+    [SerializeField] private TMP_Text waitButtonLabel;
+    [SerializeField] private Button retryButton;
+    [SerializeField] private TMP_Text retryButtonLabel;
+
+    [Header("Game Over")]
+    [SerializeField] private GameObject gameOverRoot;
+    [SerializeField] private TMP_Text eliminatedTitle;
+    [SerializeField] private TMP_Text numberBadge;
+    [SerializeField] private RectTransform badgeCrackRoot;
+    [SerializeField] private TMP_Text distanceText;
+    [SerializeField] private TMP_Text timeText;
+    [SerializeField] private TMP_Text challengesText;
+    [SerializeField] private Button watchOthersButton;
+    [SerializeField] private Button exitButton;
+
+    public UnityEvent onWaitRequested = new UnityEvent();
+    public UnityEvent onRetryRequested = new UnityEvent();
+    public UnityEvent onWatchOthersRequested = new UnityEvent();
+    public UnityEvent onExitRequested = new UnityEvent();
+
+    private Sequence activeSequence;
+
+    private void Awake()
+    {
+        BindButton(waitButton, onWaitRequested);
+        BindButton(retryButton, onRetryRequested);
+        BindButton(watchOthersButton, onWatchOthersRequested);
+        BindButton(exitButton, onExitRequested);
+        HideImmediate();
+    }
+
+    public void ShowChallengeFailed(int strikes, int maxStrikes, string description, string status, string waitMessage)
+    {
+        PreparePanel(challengeFailedRoot);
+        SetGameObject(gameOverRoot, false);
+
+        failedTitle.text = UIStrings.ChallengeFailedTitle;
+        failedDescription.text = description;
+        strikeCounterText.text = string.Format(UIStrings.TaskFailedFormat, strikes, maxStrikes);
+        statusTitle.text = status;
+        statusMessage.text = waitMessage;
+        waitButtonLabel.text = UIStrings.WaitForGreenLight;
+        retryButtonLabel.text = UIStrings.Retry;
+        RefreshStrikeCircles(failedStrikeCircles, strikes);
+
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        Color textColor = palette != null ? palette.textPrimary : Color.white;
+        Vector2 topBarTarget = topBar.anchoredPosition;
+        Vector2 topBarStart = new Vector2(topBarTarget.x, topBarTarget.y + topBar.rect.height + 36f);
+
+        activeSequence = DOTween.Sequence();
+        activeSequence.Append(UIAnimationManager.Require().Fade(rootGroup, 1f, 0.14f));
+        activeSequence.Join(UIAnimationManager.Require().SlideIn(topBar, topBarStart, topBarTarget, 0.3f));
+        activeSequence.Append(UIAnimationManager.Require().GlitchTitle(failedTitle, danger, textColor));
+        activeSequence.Join(UIAnimationManager.Require().Pop(statusBox, 1.04f));
+
+        for (int i = 0; i < failedStrikeCircles.Length; i++)
+        {
+            if (failedStrikeCircles[i] == null)
+                continue;
+
+            activeSequence.Insert(0.28f + (i * 0.05f), UIAnimationManager.Require().Pop(failedStrikeCircles[i].rectTransform, 1.22f));
+        }
+    }
+
+    public void ShowGameOver(string playerNumber, string distanceCovered, string timeSurvived, string challengesPassed)
+    {
+        PreparePanel(gameOverRoot);
+        SetGameObject(challengeFailedRoot, false);
+
+        eliminatedTitle.text = UIStrings.EliminatedTitle;
+        numberBadge.text = playerNumber;
+        distanceText.text = distanceCovered;
+        timeText.text = timeSurvived;
+        challengesText.text = challengesPassed;
+
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        activeSequence = DOTween.Sequence();
+        activeSequence.Append(UIAnimationManager.Require().Fade(rootGroup, 1f, 0.18f));
+        activeSequence.Append(UIAnimationManager.Require().GlitchTitle(eliminatedTitle, danger, Color.white));
+
+        if (badgeCrackRoot != null)
+        {
+            badgeCrackRoot.localScale = Vector3.one;
+            activeSequence.Join(badgeCrackRoot.DOShakeAnchorPos(0.42f, 28f, 30, 90f, false, true));
+            activeSequence.Join(badgeCrackRoot.DOPunchScale(new Vector3(0.24f, -0.08f, 0f), 0.42f, 8, 0.65f));
+        }
+    }
+
+    public void Hide()
+    {
+        activeSequence?.Kill();
+        activeSequence = DOTween.Sequence();
+        activeSequence.Append(UIAnimationManager.Require().Fade(rootGroup, 0f, 0.16f));
+        activeSequence.OnComplete(HideImmediate);
+    }
+
+    private void HideImmediate()
+    {
+        rootGroup.alpha = 0f;
+        rootGroup.blocksRaycasts = false;
+        rootGroup.interactable = false;
+        SetGameObject(challengeFailedRoot, false);
+        SetGameObject(gameOverRoot, false);
+    }
+
+    private void PreparePanel(GameObject panelRoot)
+    {
+        activeSequence?.Kill();
+        gameObject.SetActive(true);
+        rootGroup.alpha = 0f;
+        rootGroup.blocksRaycasts = true;
+        rootGroup.interactable = true;
+        SetGameObject(panelRoot, true);
+
+        if (overlay != null && palette != null)
+            overlay.color = palette.transparentOverlay;
+
+        if (noiseOverlay != null)
+            noiseOverlay.DOFade(0.16f, 1.6f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine);
+    }
+
+    private void RefreshStrikeCircles(Image[] circles, int strikes)
+    {
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        Color empty = new Color(1f, 1f, 1f, 0.18f);
+
+        for (int i = 0; i < circles.Length; i++)
+        {
+            if (circles[i] != null)
+                circles[i].color = i < strikes ? danger : empty;
+        }
+    }
+
+    private static void BindButton(Button button, UnityEvent unityEvent)
+    {
+        if (button == null)
+            return;
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(unityEvent.Invoke);
+    }
+
+    private static void SetGameObject(GameObject target, bool state)
+    {
+        if (target != null)
+            target.SetActive(state);
+    }
+}

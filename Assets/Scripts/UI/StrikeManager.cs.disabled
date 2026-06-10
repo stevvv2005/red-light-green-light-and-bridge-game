@@ -1,0 +1,86 @@
+using System;
+using DG.Tweening;
+using UnityEngine;
+using UnityEngine.Events;
+using UnityEngine.UI;
+
+/// <summary>
+/// Manages the three-strike elimination rule and broadcasts UI/gameplay events.
+/// </summary>
+public sealed class StrikeManager : MonoBehaviour
+{
+    [Serializable] public sealed class StrikeUnityEvent : UnityEvent<int> { }
+
+    [SerializeField] private int maxStrikes = 3;
+    [SerializeField] private Image screenFlash;
+    [SerializeField] private RectTransform shakeRoot;
+    [SerializeField] private Image[] strikeCircles = Array.Empty<Image>();
+    [SerializeField] private ChallengeResultUI resultUI;
+    [SerializeField] private UIColorPalette palette;
+
+    public event Action<int> StrikeAdded;
+    public event Action Eliminated;
+
+    public StrikeUnityEvent onStrikeAdded = new StrikeUnityEvent();
+    public UnityEvent onEliminated = new UnityEvent();
+
+    public int CurrentStrikes { get; private set; }
+    public int MaxStrikes => maxStrikes;
+
+    public void RegisterStrike(string reason)
+    {
+        CurrentStrikes = Mathf.Clamp(CurrentStrikes + 1, 0, maxStrikes);
+        AnimateStrike(CurrentStrikes);
+        StrikeAdded?.Invoke(CurrentStrikes);
+        onStrikeAdded.Invoke(CurrentStrikes);
+
+        if (CurrentStrikes >= maxStrikes)
+        {
+            Eliminated?.Invoke();
+            onEliminated.Invoke();
+            if (resultUI != null)
+                resultUI.ShowGameOver("067", "0 m", "00:00", "0");
+        }
+        else if (resultUI != null)
+        {
+            resultUI.ShowChallengeFailed(CurrentStrikes, maxStrikes, reason, UIStrings.BlockedStatus, UIStrings.WaitForGreenLight);
+        }
+    }
+
+    public void ResetStrikes()
+    {
+        CurrentStrikes = 0;
+        RefreshStrikeCircles();
+    }
+
+    private void AnimateStrike(int strikeIndex)
+    {
+        RefreshStrikeCircles();
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        Sequence sequence = DOTween.Sequence();
+
+        if (screenFlash != null)
+            sequence.Join(UIAnimationManager.Require().Flash(screenFlash, danger, 0.2f));
+
+        if (shakeRoot != null)
+            sequence.Join(UIAnimationManager.Require().Shake(shakeRoot));
+
+        int circleIndex = strikeIndex - 1;
+        if (circleIndex >= 0 && circleIndex < strikeCircles.Length && strikeCircles[circleIndex] != null)
+            sequence.Join(UIAnimationManager.Require().Pop(strikeCircles[circleIndex].rectTransform, 1.35f));
+    }
+
+    private void RefreshStrikeCircles()
+    {
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        Color empty = new Color(1f, 1f, 1f, 0.18f);
+
+        for (int i = 0; i < strikeCircles.Length; i++)
+        {
+            if (strikeCircles[i] == null)
+                continue;
+
+            strikeCircles[i].color = i < CurrentStrikes ? danger : empty;
+        }
+    }
+}

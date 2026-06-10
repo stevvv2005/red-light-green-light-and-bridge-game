@@ -1,0 +1,84 @@
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// Singleton facade for reusable DOTween UI animation sequences.
+/// </summary>
+public sealed class UIAnimationManager : MonoBehaviour
+{
+    public static UIAnimationManager Instance { get; private set; }
+
+    [SerializeField] private Ease defaultEase = Ease.OutCubic;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    public static UIAnimationManager Require()
+    {
+        if (Instance != null)
+            return Instance;
+
+        GameObject managerObject = new GameObject("UIAnimationManager");
+        return managerObject.AddComponent<UIAnimationManager>();
+    }
+
+    public Sequence SlideIn(RectTransform target, Vector2 from, Vector2 to, float duration)
+    {
+        Sequence sequence = DOTween.Sequence();
+        target.anchoredPosition = from;
+        sequence.Append(target.DOAnchorPos(to, duration).SetEase(defaultEase));
+        return sequence;
+    }
+
+    public Sequence Fade(CanvasGroup group, float targetAlpha, float duration)
+    {
+        Sequence sequence = DOTween.Sequence();
+        sequence.Append(group.DOFade(targetAlpha, duration).SetEase(Ease.OutQuad));
+        return sequence;
+    }
+
+    public Sequence Pop(RectTransform target, float peakScale = 1.22f)
+    {
+        Sequence sequence = DOTween.Sequence();
+        sequence.Append(target.DOScale(peakScale, 0.12f).SetEase(Ease.OutBack));
+        sequence.Append(target.DOScale(1f, 0.16f).SetEase(Ease.OutCubic));
+        return sequence;
+    }
+
+    public Sequence GlitchTitle(TMP_Text text, Color dangerColor, Color normalColor)
+    {
+        RectTransform rect = text.rectTransform;
+        Sequence sequence = DOTween.Sequence();
+        sequence.Append(rect.DOShakeAnchorPos(0.28f, new Vector2(18f, 3f), 24, 90f, false, true));
+        sequence.Join(text.DOColor(dangerColor, 0.06f).SetLoops(6, LoopType.Yoyo));
+        sequence.Append(text.DOColor(normalColor, 0.08f));
+        return sequence;
+    }
+
+    public Sequence Flash(Image image, Color color, float duration)
+    {
+        Sequence sequence = DOTween.Sequence();
+        image.color = new Color(color.r, color.g, color.b, 0f);
+        sequence.Append(image.DOFade(0.55f, duration * 0.35f).SetEase(Ease.OutQuad));
+        sequence.Append(image.DOFade(0f, duration * 0.65f).SetEase(Ease.InQuad));
+        return sequence;
+    }
+
+    public Sequence Shake(RectTransform target, float duration = 0.22f, float strength = 22f)
+    {
+        Sequence sequence = DOTween.Sequence();
+        sequence.Append(target.DOShakeAnchorPos(duration, strength, 24, 90f, false, true));
+        return sequence;
+    }
+}

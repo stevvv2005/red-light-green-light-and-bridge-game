@@ -1,0 +1,20 @@
+/// <summary>
+/// Centralized UI copy for the cinematic Squid Game interface.
+/// </summary>
+public static class UIStrings
+{
+    public const string ChallengeFailedTitle = "CHALLENGE FAILED";
+    public const string EliminatedTitle = "ELIMINATED";
+    public const string GreenLight = "GREEN LIGHT";
+    public const string RedLight = "RED LIGHT";
+    public const string WaitForGreenLight = "WAIT FOR GREEN LIGHT";
+    public const string Retry = "RETRY";
+    public const string Continue = "CONTINUE";
+    public const string WatchOthers = "WATCH OTHERS";
+    public const string ExitGame = "EXIT GAME";
+    public const string DontMove = "DON'T MOVE";
+    public const string Run = "RUN!";
+    public const string TaskFailedFormat = "Task failed: {0}/{1} strikes";
+    public const string BlockedStatus = "BLOCKED";
+    public const string PlayerNumberFormat = "PLAYER {0:000}";
+}

@@ -1,0 +1,43 @@
+using DG.Tweening;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>
+/// Drives red/green screen vignettes for light-state tension.
+/// </summary>
+public sealed class VignetteController : MonoBehaviour
+{
+    [SerializeField] private UIColorPalette palette;
+    [SerializeField] private Image vignetteImage;
+
+    private Sequence activeSequence;
+
+    public void SetIntensity(Color color, float alpha)
+    {
+        if (vignetteImage == null)
+            return;
+
+        vignetteImage.color = new Color(color.r, color.g, color.b, alpha);
+    }
+
+    public Sequence PulseDanger()
+    {
+        activeSequence?.Kill();
+        Color danger = palette != null ? palette.primaryAccent : new Color(1f, 0.176f, 0.333f, 1f);
+        SetIntensity(danger, 0.08f);
+
+        activeSequence = DOTween.Sequence();
+        activeSequence.Append(vignetteImage.DOFade(0.34f, 0.42f).SetEase(Ease.OutSine));
+        activeSequence.Append(vignetteImage.DOFade(0.13f, 0.52f).SetEase(Ease.InOutSine));
+        activeSequence.SetLoops(-1, LoopType.Yoyo);
+        return activeSequence;
+    }
+
+    public Sequence FadeOut(float duration = 0.28f)
+    {
+        activeSequence?.Kill();
+        activeSequence = DOTween.Sequence();
+        activeSequence.Append(vignetteImage.DOFade(0f, duration).SetEase(Ease.OutQuad));
+        return activeSequence;
+    }
+}
